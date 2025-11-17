@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HydrateTrack</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f1f1f1;
+        }
+
+        /* Tab bar */
+        .tab {
+            display: flex;
+            background-color: #333;
+        }
+
+        .tab button {
+            flex: 1;
+            padding: 14px 16px;
+            background-color: inherit;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .tab button:hover {
+            background-color: #444;
+        }
+
+        .tab button.active {
+            background-color: #007BFF;
+        }
+
+        /* Tab content areas */
+        .tabcontent {
+            display: none;
+            padding: 20px;
+            background: white;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+        }
+
+        input, select {
+            padding: 8px;
+            font-size: 16px;
+            width: 100%;
+            margin: 8px 0;
+        }
+
+        button.calculate-btn {
+            padding: 10px 16px;
+            background: #007BFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        button.calculate-btn:hover {
+            background: #005fcc;
+        }
+
+        #result-box {
+            margin-top: 20px;
+            background: #e9f5ff;
+            padding: 16px;
+            border-radius: 6px;
+            border: 1px solid #b5daff;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- TAB BAR -->
+    <div class="tab">
+        <button class="tablinks" onclick="openTab(event, 'Dashboard')" id="defaultOpen">Dashboard</button>
+        <button class="tablinks" onclick="openTab(event, 'HydrationCalc')">Hydration Calculator</button>
+        <button class="tablinks" onclick="openTab(event, 'History')">Activity History</button>
+        <button class="tablinks" onclick="openTab(event, 'Settings')">Settings</button>
+    </div>
+
+    <!-- DASHBOARD TAB -->
+    <div id="Dashboard" class="tabcontent container">
+        <h2>Dashboard</h2>
+        <p>Real-time hydration status, watch sync, and quick metrics will appear here.</p>
+    </div>
+
+    <!-- HYDRATION CALCULATOR TAB -->
+    <div id="HydrationCalc" class="tabcontent container">
+        <h2>Hydration Calculator</h2>
+
+        <label>Weight (kg):</label>
+        <input type="number" id="weightInput">
+
+        <label>Sex:</label>
+        <select id="sexInput">
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+        </select>
+
+        <label>Duration (min):</label>
+        <input type="number" id="durationInput">
+
+        <label>Heart Rate (bpm):</label>
+        <input type="number" id="hrInput">
+
+        <label>Temperature (°C):</label>
+        <input type="number" id="tempInput" value="22">
+
+        <button class="calculate-btn" onclick="sendCalculation()">Calculate</button>
+
+        <div id="result-box" style="display:none;"></div>
+    </div>
+
+    <!-- HISTORY TAB -->
+    <div id="History" class="tabcontent container">
+        <h2>Activity History</h2>
+        <p>Your synced Strava workouts and past hydration recommendations will show here.</p>
+    </div>
+
+    <!-- SETTINGS TAB -->
+    <div id="Settings" class="tabcontent container">
+        <h2>Settings</h2>
+        <p>Strava connection, user profile, and app preferences.</p>
+    </div>
+
+    <!-- JAVASCRIPT -->
+    <script>
+        // 🟦 Tab switching function
+        function openTab(evt, tabName) {
+            var i, tabcontent, tablinks;
+
+            tabcontent = document.getElementsByClassName("tabcontent");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+
+            tablinks = document.getElementsByClassName("tablinks");
+            for (i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+        }
+
+        document.getElementById("defaultOpen").click();
+
+
+        // 🟦 Function to send data to Flask backend
+        async function sendCalculation() {
+            const data = {
+                weight: parseFloat(document.getElementById("weightInput").value),
+                sex: document.getElementById("sexInput").value,
+                duration: parseFloat(document.getElementById("durationInput").value),
+                heart_rate: parseFloat(document.getElementById("hrInput").value),
+                temp: parseFloat(document.getElementById("tempInput").value)
+            };
+
+            const response = await fetch("/calculate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+
+            // Display in result box
+            const box = document.getElementById("result-box");
+            box.style.display = "block";
+            box.innerHTML = `
+                <strong>Water:</strong> ${result.water_ml.toFixed(0)} mL<br>
+                <strong>Sodium:</strong> ${result.sodium_mg.toFixed(0)} mg<br>
+                <strong>Potassium:</strong> ${result.potassium_mg.toFixed(0)} mg<br>
+                <strong>Magnesium:</strong> ${result.magnesium_mg.toFixed(0)} mg<br>
+                <em>(Sweat Rate: ${result.sweat_rate_L_per_hr.toFixed(2)} L/hr)</em><br>
+            `;
+        }
+    </script>
+
+</body>
+</html>

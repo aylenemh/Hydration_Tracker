@@ -1,0 +1,38 @@
+<div class="water-bottle">
+  <svg class="bottle-svg" viewBox="0 0 180 500" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <!-- Clip ONLY the bottle body (no cap) -->
+      <clipPath id="bottleBodyClip" clipPathUnits="userSpaceOnUse">
+        <path d="M40 105
+                 Q40 70 90 70
+                 Q140 70 140 105
+                 L140 400
+                 Q140 480 90 480
+                 Q40 480 40 400
+                 Z"/>
+      </clipPath>
+    </defs>
+
+    <!-- Water (clipped to bottle body) -->
+    <rect id="waterFillRect"
+          x="0" y="500" width="180" height="0"
+          clip-path="url(#bottleBodyClip)"
+          rx="20" />
+
+    <!-- Bottle outline on top -->
+    <g stroke="black" stroke-width="12" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="55" y="10" width="70" height="60" rx="15"/>
+      <rect x="75" y="70" width="30" height="35"/>
+
+      <path d="M40 105
+               Q40 70 90 70
+               Q140 70 140 105
+               L140 400
+               Q140 480 90 480
+               Q40 480 40 400
+               Z"/>
+
+      <rect x="65" y="160" width="50" height="230" rx="20"/>
+    </g>
+  </svg>
+</div>

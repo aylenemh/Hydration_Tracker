@@ -1,31 +1,65 @@
+{# ---------------------------------------------------------
+   This template renders the main app UI with:
+   - A tabbed interface (Dashboard, Calculator, History, Settings, Analytics)
+   - A “water bottle” daily intake widget backed by /get_water and /add_water
+   - A hydration calculator that POSTs JSON to /calculate
+   - History table of workout sessions
+   - Analytics charts powered by Chart.js
+--------------------------------------------------------- #}
+
 {% extends "layout.html" %}
 {% block content %}
 
-<head>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-</head>
+<!-- ---------------------------------------------------------
+     External JS dependency: Chart.js for rendering charts in Analytics tab
+--------------------------------------------------------- -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
+    /* ---------------------------------------------------------
+       Global page styling (background + base font)
+    --------------------------------------------------------- */
     body {
         font-family: Arial, sans-serif;
         margin: 0;
         padding: 0;
         background: #f1f1f1;
     }
-        .dashboard-grid {
-        display: flex;
-        flex-wrap: wrap;
+
+    /* ---------------------------------------------------------
+       Dashboard grid layout (2 columns on desktop, 1 on mobile)
+       Uses CSS grid with "masonry-like" behavior controlled by JS below.
+    --------------------------------------------------------- */
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 16px;
         margin-top: 10px;
+        align-items: start;
+
+        /* These help enable the masonry span calculation */
+        grid-auto-flow: dense;
+        grid-auto-rows: 10px;
     }
 
+    /* Mobile: stack cards into one column */
+    @media (max-width: 900px) {
+        .dashboard-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* ---------------------------------------------------------
+       Card component styling shared across dashboard items
+    --------------------------------------------------------- */
     .dash-card {
-        background: #ffffff;          /* style A: white cards */
+        background: #ffffff;
         border-radius: 8px;
         border: 1px solid #e0e0e0;
         padding: 16px 18px;
-        flex: 1 1 calc(50% - 16px);   /* 2 cards per row */
         min-width: 260px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+        height: auto;
     }
 
     .dash-card-title {
@@ -52,126 +86,10 @@
         margin-bottom: 6px;
     }
 
-    .tooltip-icon {
-        display: inline-block;
-        background: #007BFF;
-        color: white;
-        border-radius: 50%;
-        width: 18px;
-        height: 18px;
-        text-align: center;
-        line-height: 18px;
-        font-size: 12px;
-        margin-left: 6px;
-        cursor: pointer;
-    }
-
-    .tooltip-box {
-        display: none;
-        position: absolute;
-        background: #333;
-        color: white;
-        padding: 10px;
-        border-radius: 6px;
-        width: 220px;
-        z-index: 10;
-        top: 0;        /* aligns with label vertically */
-        left: 110%;    /* places tooltip just to the right of label */
-    }
-
-    .tooltip-close {
-        float: right;
-        cursor: pointer;
-        margin-left: 8px;
-        color: #ff7777;
-        font-weight: bold;
-    }
-    .tab {
-        display: flex;
-        background-color: #333;
-        margin-bottom: 20px;
-    }
-
-    .tab button {
-        flex: 1;
-        padding: 14px 16px;
-        background-color: inherit;
-        color: white;
-        border: none;
-        cursor: pointer;
-        font-size: 16px;
-    }
-
-    .tab button:hover {
-        background-color: #444;
-    }
-
-    .tab button.active {
-        background-color: #007BFF;
-    }
-
-    .tabcontent {
-        display: none;
-        padding: 20px;
-        background: white;
-        border-radius: 8px;
-    }
-
-    .container {
-        max-width: 900px;
-    }
-
-    input {
-        padding: 8px;
-        font-size: 16px;
-        width: 100%;
-        margin: 8px 0;
-    }
-
-    .toggle-group {
-        display: flex;
-        gap: 8px;
-        margin-top: 8px;
-    }
-
-    .toggle-btn {
-        padding: 6px 14px;
-        border-radius: 5px;
-        border: 1px solid #ccc;
-        background: #eee;
-        cursor: pointer;
-    }
-
-    .toggle-btn.active {
-        background: #007BFF;
-        color: white;
-        border-color: #007BFF;
-    }
-
-    button.calculate-btn {
-        width: 100%;
-        padding: 10px 16px;
-        background: #007BFF;
-        color: white;
-        border: none;
-        cursor: pointer;
-        border-radius: 5px;
-        margin-top: 15px;
-    }
-
-    button.calculate-btn:hover {
-        background: #005fcc;
-    }
-
-    #result-box {
-        margin-top: 20px;
-        background: #e9f5ff;
-        padding: 16px;
-        border-radius: 6px;
-        border: 1px solid #b5daff;
-    }
-
-    /* TOOLTIP STYLES */
+    /* ---------------------------------------------------------
+       TOOLTIP STYLES
+       Simple click-to-toggle tooltip boxes (not hover-only).
+    --------------------------------------------------------- */
     .tooltip-icon {
         display: inline-block;
         background: #007BFF;
@@ -208,10 +126,131 @@
         color: #ff7777;
         font-weight: bold;
     }
+
+    /* ---------------------------------------------------------
+       TAB NAVIGATION STYLES
+       Horizontal bar of buttons across the top.
+    --------------------------------------------------------- */
+    .tab {
+        display: flex;
+        background-color: #333;
+        margin-bottom: 20px;
+    }
+
+    .tab button {
+        flex: 1;
+        padding: 14px 16px;
+        background-color: inherit;
+        color: white;
+        border: none;
+        cursor: pointer;
+        font-size: 16px;
+    }
+
+    .tab button:hover {
+        background-color: #444;
+    }
+
+    .tab button.active {
+        background-color: #007BFF;
+    }
+
+    /* Tab panels are hidden by default; shown via JS */
+    .tabcontent {
+        display: none;
+        padding: 20px;
+        background: white;
+        border-radius: 8px;
+    }
+
+    /* Container max width so the page doesn’t stretch too wide */
+    .container {
+        max-width: 900px;
+    }
+
+    /* Form input base styles */
+    input {
+        padding: 8px;
+        font-size: 16px;
+        width: 100%;
+        margin: 8px 0;
+    }
+
+    /* ---------------------------------------------------------
+       Toggle buttons (kg/lbs, °C/°F)
+       These store preferences in localStorage.
+    --------------------------------------------------------- */
+    .toggle-group {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+    }
+
+    .toggle-btn {
+        padding: 6px 14px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+        background: #eee;
+        cursor: pointer;
+    }
+
+    .toggle-btn.active {
+        background: #007BFF;
+        color: white;
+        border-color: #007BFF;
+    }
+
+    /* Main "Calculate" CTA button */
+    button.calculate-btn {
+        width: 100%;
+        padding: 10px 16px;
+        background: #007BFF;
+        color: white;
+        border: none;
+        cursor: pointer;
+        border-radius: 5px;
+        margin-top: 15px;
+    }
+
+    button.calculate-btn:hover {
+        background: #005fcc;
+    }
+
+    /* Result panel after calculation */
+    #result-box {
+        margin-top: 20px;
+        background: #e9f5ff;
+        padding: 16px;
+        border-radius: 6px;
+        border: 1px solid #b5daff;
+    }
+
+    /* ---------------------------------------------------------
+       WATER BOTTLE SVG UI
+       The water fill is a rectangle clipped to the bottle body.
+    --------------------------------------------------------- */
+    .water-bottle {
+        width: 180px;
+        height: 500px;
+        margin: 0 auto;
+    }
+
+    .bottle-svg {
+        width: 100%;
+        height: 100%;
+        display: block;
+    }
+
+    /* The animated water fill rectangle inside the bottle */
+    #waterFillRect {
+        fill: rgba(70,140,255,0.85);
+        transition: y 0.5s ease, height 0.5s ease;
+    }
 </style>
 
-
-<!-- TAB BAR -->
+<!-- ---------------------------------------------------------
+     TAB BAR (navigation buttons)
+--------------------------------------------------------- -->
 <div class="tab">
     <button class="tablinks" onclick="openTab(event, 'Dashboard')" id="defaultOpen">Dashboard</button>
     <button class="tablinks" onclick="openTab(event, 'HydrationCalc')">Hydration Calculator</button>
@@ -220,14 +259,83 @@
     <button class="tablinks" onclick="openTab(event, 'Analytics')">Analytics</button>
 </div>
 
-
-<!-- DASHBOARD TAB -->
+<!-- ---------------------------------------------------------
+     DASHBOARD TAB
+     Shows high-level stats + bottle + refuel suggestions.
+--------------------------------------------------------- -->
 <div id="Dashboard" class="tabcontent container">
     <h2>Dashboard</h2>
     <p class="text-muted">Overview of your recent training and hydration.</p>
 
     <div class="dashboard-grid">
-        <!-- Today’s Workouts -->
+        <!-- -------------------------------------------------
+             Water Bottle Card
+             - Fill level is animated by JS using daily intake /get_water
+             - “Add” button POSTs to /add_water
+        -------------------------------------------------- -->
+        <div class="dash-card">
+            <div class="dash-card-title">Today’s Water Intake</div>
+
+            <div class="water-bottle">
+                <svg class="bottle-svg" viewBox="0 0 180 500" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <!-- Clip ONLY the bottle body (no cap) so water fill doesn't spill into cap -->
+                        <clipPath id="bottleBodyClip" clipPathUnits="userSpaceOnUse">
+                            <path d="M40 105
+                                     Q40 70 90 70
+                                     Q140 70 140 105
+                                     L140 400
+                                     Q140 480 90 480
+                                     Q40 480 40 400
+                                     Z"/>
+                        </clipPath>
+                    </defs>
+
+                    <!-- Water fill rectangle; y/height changed dynamically to “fill” the bottle -->
+                    <rect id="waterFillRect"
+                          x="0" y="500" width="180" height="0"
+                          clip-path="url(#bottleBodyClip)"
+                          rx="20" />
+
+                    <!-- Bottle outline drawn above water -->
+                    <g stroke="black" stroke-width="12" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                        <!-- Bottle cap -->
+                        <rect x="55" y="10" width="70" height="60" rx="15"/>
+                        <rect x="75" y="70" width="30" height="35"/>
+
+                        <!-- Bottle neck / shoulders / body -->
+                        <path d="M40 105
+                                 Q40 70 90 70
+                                 Q140 70 140 105
+                                 L140 400
+                                 Q140 480 90 480
+                                 Q40 480 40 400
+                                 Z"/>
+
+                        <!-- Inner window detail -->
+                        <rect x="65" y="160" width="50" height="230" rx="20"/>
+                    </g>
+                </svg>
+            </div>
+
+            <!-- JS updates this with today's total + progress toward a “bottle” goal -->
+            <p id="waterText" style="margin-top:10px; font-size:14px; color:#444;">
+                Loading...
+            </p>
+
+            <!-- JS updates this with number of full “bottles” completed -->
+            <p id="bottleTally" style="margin-top:4px; font-size:13px; color:#666;">
+                Bottles completed: 0
+            </p>
+
+            <!-- Quick add water control (oz) -->
+            <div style="margin-top:10px;">
+                <input type="number" id="waterInput" min="1" placeholder="oz" style="width:80px; display:inline-block;">
+                <button onclick="addWater()" style="margin-left:6px;">Add</button>
+            </div>
+        </div>
+
+        <!-- Today’s Workouts card -->
         <div class="dash-card">
             <div class="dash-card-title">Today’s Workouts</div>
             <div class="dash-card-value">
@@ -236,7 +344,7 @@
             <div class="dash-card-sub">Workouts logged since midnight</div>
         </div>
 
-        <!-- Lifetime Workouts -->
+        <!-- Lifetime Workouts card -->
         <div class="dash-card">
             <div class="dash-card-title">Lifetime Workouts</div>
             <div class="dash-card-value">
@@ -245,7 +353,7 @@
             <div class="dash-card-sub">Total sessions saved in HydrateTrack</div>
         </div>
 
-        <!-- Average Sweat Rate (last 7 days) -->
+        <!-- Avg sweat rate card (last 7 days) -->
         <div class="dash-card">
             <div class="dash-card-title">Avg Sweat Rate (7 days)</div>
             <div class="dash-card-value">
@@ -258,32 +366,50 @@
             <div class="dash-card-sub">Based on workouts from the last 7 days</div>
         </div>
 
-        <!-- Total Water Needed (last 7 days) -->
+        <!-- -------------------------------------------------
+             Refuel Recommendation card (based on most recent workout)
+             Also includes a JS-generated list of drink options.
+        -------------------------------------------------- -->
         <div class="dash-card">
-            <div class="dash-card-title">Water Needed (7 days)</div>
-            <div class="dash-card-value">
-                {% if stats.total_water_oz_7d is not none %}
-                    {{ '%.1f'|format(stats.total_water_oz_7d) }} oz
-                {% else %}
-                    —
-                {% endif %}
+          <div class="dash-card-title">Refuel Recommendation</div>
+
+          {% if stats.last_refuel %}
+            <div class="dash-card-value">{{ stats.last_refuel.water_oz | round(1) }} oz</div>
+            <div class="dash-card-sub">from your most recent workout</div>
+
+            <div style="margin-top:10px; font-size:14px; color:#333; line-height:1.5;">
+              <div><strong>Sodium:</strong> {{ stats.last_refuel.sodium_mg | round(0) }} mg</div>
+              <div><strong>Potassium:</strong> {{ stats.last_refuel.potassium_mg | round(0) }} mg</div>
+              <div><strong>Magnesium:</strong> {{ stats.last_refuel.magnesium_mg | round(0) }} mg</div>
+              <div style="margin-top:6px; color:#666;"><em>Sweat Rate:</em> {{ stats.last_refuel.sweat_rate | round(2) }} L/hr</div>
             </div>
-            <div class="dash-card-sub">Total recommended fluid over the last week</div>
+
+            <!-- Drink rec box filled by renderDrinkRecs() -->
+            <div id="drinkRecBox" style="margin-top:12px; padding-top:10px; border-top:1px solid #eee;">
+              <div style="font-weight:600; font-size:13px; color:#444;">Drink options (based on your electrolytes)</div>
+              <div id="drinkRecList" style="margin-top:6px; font-size:13px; color:#333; line-height:1.5;">Loading…</div>
+              <div style="margin-top:6px; font-size:12px; color:#888;">Values are approximate and vary by flavor/size.</div>
+            </div>
+          {% else %}
+            <div class="dash-card-value">—</div>
+            <div class="dash-card-sub">Log a workout to generate a refuel recommendation.</div>
+          {% endif %}
         </div>
 
+        <!-- Today’s refuel totals across all workouts today -->
         <div class="dash-card">
-            <div class="dash-card-title">Daily Hydration Goal</div>
-            <div class="dash-card-value">
-                {% if stats.hydration_goal_oz %}
-                    {{ '%.0f'|format(stats.hydration_goal_oz) }} oz
-                {% else %}
-                    —
-                {% endif %}
-            </div>
-            <div class="dash-card-sub">Based on weight, sweat rate & climate</div>
+          <div class="dash-card-title">Today’s Refuel Total (Workouts)</div>
+          <div class="dash-card-value">{{ stats.today_refuel.water_oz | round(1) }} oz</div>
+          <div class="dash-card-sub">sum of today’s workout recommendations</div>
+
+          <div style="margin-top:10px; font-size:14px; color:#333; line-height:1.5;">
+            <div><strong>Sodium:</strong> {{ stats.today_refuel.sodium_mg | round(0) }} mg</div>
+            <div><strong>Potassium:</strong> {{ stats.today_refuel.potassium_mg | round(0) }} mg</div>
+            <div><strong>Magnesium:</strong> {{ stats.today_refuel.magnesium_mg | round(0) }} mg</div>
+          </div>
         </div>
 
-        <!-- Highest Temperature Workout -->
+        <!-- Warmest workout in last 7 days -->
         <div class="dash-card">
             <div class="dash-card-title">Warmest Workout (7 days)</div>
             <div class="dash-card-value">
@@ -295,9 +421,10 @@
             </div>
             <div class="dash-card-sub">Highest recorded temperature in the last week</div>
         </div>
-        <!-- Total Water Needed Today -->
+
+        <!-- Sum of water needed today (from workout recommendations) -->
         <div class="dash-card">
-            <div class="dash-card-title">Water Needed Today</div>
+            <div class="dash-card-title">Water Needed Today (Workouts)</div>
             <div class="dash-card-value">
                 {{ '%.1f'|format(stats.total_water_oz_today) }} oz
             </div>
@@ -306,12 +433,14 @@
     </div>
 </div>
 
-
-<!-- HYDRATION CALCULATOR TAB -->
+<!-- ---------------------------------------------------------
+     HYDRATION CALCULATOR TAB
+     User enters inputs, JS validates + converts units, then POSTs to /calculate.
+--------------------------------------------------------- -->
 <div id="HydrationCalc" class="tabcontent container">
     <h2>Hydration Calculator</h2>
 
-    <!-- WEIGHT -->
+    <!-- Weight input + tooltip -->
     <label>
         Weight:
         <span class="tooltip-icon" onclick="toggleTip('wTip')">i</span>
@@ -320,14 +449,17 @@
             <span class="tooltip-close" onclick="toggleTip('wTip')">x</span>
         </span>
     </label>
-    <input type="number" id="weightInput">
 
+    <!-- Prefilled from stats.user_weight (kg from backend unless converted below) -->
+    <input type="number" id="weightInput" value="{{ stats.user_weight }}">
+
+    <!-- Weight unit toggle -->
     <div class="toggle-group">
         <button id="kgBtn" class="toggle-btn">kg</button>
         <button id="lbsBtn" class="toggle-btn">lbs</button>
     </div>
 
-    <!-- SEX -->
+    <!-- Sex input + tooltip -->
     <div style="margin-bottom: 16px;">
         <label>
             Sex:
@@ -337,13 +469,15 @@
                 <span class="tooltip-close" onclick="toggleTip('sTip')">x</span>
             </span>
         </label>
+
+        <!-- Sex is sent as-is to backend; backend expects "male" or "female" -->
         <select id="sexInput" style="width:100%; margin-top:6px;">
             <option value="male">Male</option>
             <option value="female">Female</option>
         </select>
     </div>
 
-    <!-- DURATION -->
+    <!-- Duration input + tooltip -->
     <label>
         Duration (min):
         <span class="tooltip-icon" onclick="toggleTip('dTip')">i</span>
@@ -354,7 +488,7 @@
     </label>
     <input type="number" id="durationInput">
 
-    <!-- HEART RATE -->
+    <!-- Heart rate input + tooltip -->
     <label>
         Heart Rate (bpm):
         <span class="tooltip-icon" onclick="toggleTip('hTip')">i</span>
@@ -365,7 +499,7 @@
     </label>
     <input type="number" id="hrInput">
 
-    <!-- TEMPERATURE -->
+    <!-- Temperature input + tooltip -->
     <label>
         Temperature:
         <span class="tooltip-icon" onclick="toggleTip('tTip')">i</span>
@@ -374,20 +508,27 @@
             <span class="tooltip-close" onclick="toggleTip('tTip')">x</span>
         </span>
     </label>
+
+    <!-- Default is 22 (assumed °C unless user toggles to °F) -->
     <input type="number" id="tempInput" value="22">
 
+    <!-- Temperature unit toggle -->
     <div class="toggle-group">
         <button id="cBtn" class="toggle-btn">°C</button>
         <button id="fBtn" class="toggle-btn">°F</button>
     </div>
 
+    <!-- Triggers sendCalculation() to post to /calculate -->
     <button class="calculate-btn" onclick="sendCalculation()">Calculate</button>
 
+    <!-- Populated after calculation -->
     <div id="result-box" style="display:none;"></div>
 </div>
 
-
-<!-- HISTORY TAB -->
+<!-- ---------------------------------------------------------
+     HISTORY TAB
+     Displays sessions passed from backend in a table.
+--------------------------------------------------------- -->
 <div id="History" class="tabcontent container">
     <h2>Activity History</h2>
 
@@ -425,8 +566,10 @@
     {% endif %}
 </div>
 
-
-<!-- SETTINGS TAB -->
+<!-- ---------------------------------------------------------
+     SETTINGS TAB
+     Mostly placeholder, includes logout.
+--------------------------------------------------------- -->
 <div id="Settings" class="tabcontent container">
     <h2>Settings</h2>
     <p class="text-muted">Manage your account and app preferences.</p>
@@ -434,6 +577,7 @@
     <div class="settings-section" style="margin-top: 20px;">
         <h4>Account</h4>
 
+        <!-- Logout hits /logout route -->
         <a href="/logout">
             <button class="btn btn-danger"
                     style="padding:10px 16px; width:200px; margin-top:10px;">
@@ -452,12 +596,15 @@
     </div>
 </div>
 
-    <!-- ANALYTICS TAB -->
-    <div id="Analytics" class="tabcontent container">
-        <h2>Analytics</h2>
-        <p class="text-muted">Visualize your hydration and sweat data.</p>
+<!-- ---------------------------------------------------------
+     ANALYTICS TAB
+     Chart.js canvases populated using chart.* arrays from backend.
+--------------------------------------------------------- -->
+<div id="Analytics" class="tabcontent container">
+    <h2>Analytics</h2>
+    <p class="text-muted">Visualize your hydration and sweat data.</p>
 
-        <!-- Sweat Rate Over Time -->
+    <!-- Sweat Rate Over Time -->
     <div style="margin-top:20px;">
         <h4>Sweat Rate Over Time</h4>
         <canvas id="sweatRateChart" height="120"></canvas>
@@ -476,126 +623,166 @@
     </div>
 </div>
 
-
 <script>
-    /* TAB SWITCHING */
-    function openTab(evt, tabName) {
-        let tabcontent = document.getElementsByClassName("tabcontent");
-        let tablinks = document.getElementsByClassName("tablinks");
+/* ---------------------------------------------------------
+   TAB SWITCHING
+   - Hides all tab panels
+   - Shows the selected panel
+   - Sets active tab styling
+--------------------------------------------------------- */
+function openTab(evt, tabName) {
+    let tabcontent = document.getElementsByClassName("tabcontent");
+    let tablinks = document.getElementsByClassName("tablinks");
 
-        for (let i = 0; i < tabcontent.length; i++) {
-            tabcontent[i].style.display = "none";
-        }
-        for (let i = 0; i < tablinks.length; i++) {
-            tablinks[i].classList.remove("active");
-        }
-        document.getElementById(tabName).style.display = "block";
+    for (let i = 0; i < tabcontent.length; i++) {
+        tabcontent[i].style.display = "none";
+    }
+    for (let i = 0; i < tablinks.length; i++) {
+        tablinks[i].classList.remove("active");
+    }
+
+    const target = document.getElementById(tabName);
+    if (target) target.style.display = "block";
+
+    if (evt && evt.currentTarget) {
         evt.currentTarget.classList.add("active");
     }
-    document.getElementById("defaultOpen").click();
+}
 
-
-    /* TOOLTIP FUNCTION */
-    function toggleTip(id) {
-        const box = document.getElementById(id);
-        box.style.display = (box.style.display === "block") ? "none" : "block";
+/* Automatically open the Dashboard tab on initial load */
+document.addEventListener("DOMContentLoaded", () => {
+    const defaultBtn = document.getElementById("defaultOpen");
+    if (defaultBtn) {
+        defaultBtn.click();
+    } else {
+        const dash = document.getElementById("Dashboard");
+        if (dash) dash.style.display = "block";
     }
+});
 
 
-    /* UNIT PREFERENCES */
-    let weightUnit = localStorage.getItem("weightUnit") || "kg";
-    let tempUnit = localStorage.getItem("tempUnit") || "c";
+/* ---------------------------------------------------------
+   TOOLTIP HANDLER
+   Toggles tooltip visibility by id
+--------------------------------------------------------- */
+function toggleTip(id) {
+    const box = document.getElementById(id);
+    box.style.display = (box.style.display === "block") ? "none" : "block";
+}
 
-    function updateToggleButtons() {
-        document.getElementById("kgBtn").classList.toggle("active", weightUnit === "kg");
-        document.getElementById("lbsBtn").classList.toggle("active", weightUnit === "lbs");
 
-        document.getElementById("cBtn").classList.toggle("active", tempUnit === "c");
-        document.getElementById("fBtn").classList.toggle("active", tempUnit === "f");
-    }
+/* ---------------------------------------------------------
+   UNIT PREFERENCES (kg/lbs, C/F)
+   Stored in localStorage so preferences persist across refreshes.
+--------------------------------------------------------- */
+let weightUnit = localStorage.getItem("weightUnit") || "kg";
+let tempUnit = localStorage.getItem("tempUnit") || "c";
 
-    document.getElementById("kgBtn").onclick = () => { weightUnit = "kg"; localStorage.setItem("weightUnit","kg"); updateToggleButtons(); };
-    document.getElementById("lbsBtn").onclick = () => { weightUnit = "lbs"; localStorage.setItem("weightUnit","lbs"); updateToggleButtons(); };
+/* Visually mark active toggles */
+function updateToggleButtons() {
+    document.getElementById("kgBtn").classList.toggle("active", weightUnit === "kg");
+    document.getElementById("lbsBtn").classList.toggle("active", weightUnit === "lbs");
 
-    document.getElementById("cBtn").onclick = () => { tempUnit = "c"; localStorage.setItem("tempUnit","c"); updateToggleButtons(); };
-    document.getElementById("fBtn").onclick = () => { tempUnit = "f"; localStorage.setItem("tempUnit","f"); updateToggleButtons(); };
+    document.getElementById("cBtn").classList.toggle("active", tempUnit === "c");
+    document.getElementById("fBtn").classList.toggle("active", tempUnit === "f");
+}
 
+/* Weight unit toggle handlers */
+document.getElementById("kgBtn").onclick = () => {
+    weightUnit = "kg";
+    localStorage.setItem("weightUnit","kg");
     updateToggleButtons();
+};
+document.getElementById("lbsBtn").onclick = () => {
+    weightUnit = "lbs";
+    localStorage.setItem("weightUnit","lbs");
+    updateToggleButtons();
+};
 
-/* SEND CALCULATION */
+/* Temperature unit toggle handlers */
+document.getElementById("cBtn").onclick = () => {
+    tempUnit = "c";
+    localStorage.setItem("tempUnit","c");
+    updateToggleButtons();
+};
+document.getElementById("fBtn").onclick = () => {
+    tempUnit = "f";
+    localStorage.setItem("tempUnit","f");
+    updateToggleButtons();
+};
+
+updateToggleButtons();
+
+/* ---------------------------------------------------------
+   Prefill weight field using user profile weight from backend.
+   stats.user_weight is in kg (stored in DB).
+   If user prefers lbs, convert before setting input value.
+--------------------------------------------------------- */
+window.addEventListener("DOMContentLoaded", () => {
+    let w = {{ stats.user_weight }};
+    if (w) {
+        if (weightUnit === "lbs") {
+            w = w * 2.205; // kg -> lbs
+        }
+        document.getElementById("weightInput").value = w.toFixed(1);
+    }
+});
+
+/* ---------------------------------------------------------
+   HYDRATION CALCULATOR (sendCalculation)
+   - Reads inputs
+   - Validates ranges
+   - Converts to engine units (kg, °C)
+   - POSTs JSON to /calculate
+   - Displays result card in ounces + electrolytes
+--------------------------------------------------------- */
 async function sendCalculation() {
-
-    // -----------------------------
-    // FRONT-END VALIDATION
-    // -----------------------------
-
     let weight = parseFloat(document.getElementById("weightInput").value);
     let duration = parseFloat(document.getElementById("durationInput").value);
     let heart_rate = parseFloat(document.getElementById("hrInput").value);
     let temp = parseFloat(document.getElementById("tempInput").value);
 
-    // Weight (kg after conversion)
+    // Basic validation (unit-agnostic where possible)
+    if (isNaN(duration) || duration < 1 || duration > 600) return alert("Duration must be 1–600 minutes.");
+    if (isNaN(heart_rate) || heart_rate < 30 || heart_rate > 230) return alert("Heart rate must be 30–230 bpm.");
+
+    // Convert to engine units FIRST (engine expects kg and °C)
+    if (weightUnit === "lbs") weight *= 0.453592;      // lbs → kg
+    if (tempUnit === "f") temp = (temp - 32) * (5/9);  // °F → °C
+
+    // Validate in engine units (kg, °C)
     if (isNaN(weight) || weight < 30 || weight > 300) {
-        alert("Please enter a valid weight between 30–300 kg.");
-        return;
+      return alert(weightUnit === "lbs" ? "Weight must be about 66–661 lbs." : "Weight must be 30–300 kg.");
     }
-
-    // Duration
-    if (isNaN(duration) || duration < 1 || duration > 600) {
-        alert("Please enter a valid workout duration between 1–600 minutes.");
-        return;
-    }
-
-    // Heart Rate
-    if (isNaN(heart_rate) || heart_rate < 30 || heart_rate > 230) {
-        alert("Please enter a valid heart rate between 30–230 bpm.");
-        return;
-    }
-
-    // Temperature (will be converted)
     if (isNaN(temp) || temp < -20 || temp > 60) {
-        alert("Please enter a valid temperature between -20°C and 60°C.");
-        return;
+      return alert(tempUnit === "f" ? "Temperature must be -4°F to 140°F." : "Temperature must be -20°C to 60°C.");
     }
 
-    // -----------------------------
-    // UNIT CONVERSION
-    // -----------------------------
-
-    if (weightUnit === "lbs") weight *= 0.453592;
-    if (tempUnit === "f") temp = (temp - 32) * (5 / 9);
-
-    // -----------------------------
-    // BUILD JSON PAYLOAD
-    // -----------------------------
-
+    // Build payload matching backend /calculate expectations
     const data = {
-        weight,
+        weight,  // kg
         sex: document.getElementById("sexInput").value,
-        duration,
-        heart_rate,
-        temp
+        duration, // min
+        heart_rate, // bpm
+        temp // °C
     };
 
-    // -----------------------------
-    // SEND REQUEST TO SERVER
-    // -----------------------------
-
+    // POST request to Flask JSON endpoint
     const response = await fetch("/calculate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {"Content-Type": "application/json"},
         body: JSON.stringify(data)
     });
 
+    // Parse response JSON
     const result = await response.json();
 
-    // -----------------------------
-    // DISPLAY RESULTS
-    // -----------------------------
-
+    // Show result panel
     document.getElementById("result-box").style.display = "block";
+
+    // Display water in oz (prefer server-provided water_oz, fallback to mL conversion)
     document.getElementById("result-box").innerHTML = `
-        <strong>Water:</strong> ${result.water_ml.toFixed(0)} mL<br>
+        <strong>Water:</strong> ${(Number(result.water_oz) || ((Number(result.water_ml) || 0) / 29.5735)).toFixed(1)} oz<br>
         <strong>Sodium:</strong> ${result.sodium_mg.toFixed(0)} mg<br>
         <strong>Potassium:</strong> ${result.potassium_mg.toFixed(0)} mg<br>
         <strong>Magnesium:</strong> ${result.magnesium_mg.toFixed(0)} mg<br>
@@ -603,15 +790,402 @@ async function sendCalculation() {
     `;
 }
 
-    /* CHARTJS PLACEHOLDER */
-    let ctx1 = document.getElementById('sweatRateChart');
-    let ctx2 = document.getElementById('waterChart');
-    let ctx3 = document.getElementById('tempScatterChart');
-    // Actual chart data will be injected later
-/* -------------------------
-   CHART: SWEAT RATE OVER TIME
-----------------------------*/
 
+/* ---------------------------------------------------------
+   WATER TRACKER (Dynamic Goal + Bottle Fill)
+   - hydrationGoal comes from backend (stats.hydration_goal_oz)
+   - Fill animation controlled by setWaterLevel(percent)
+   - loadWater() pulls from /get_water
+   - addWater() posts to /add_water
+--------------------------------------------------------- */
+
+// Hydration goal (oz) injected from Python stats; fallback to 64 if missing
+let hydrationGoal = {{ stats.hydration_goal_oz or 64 }};
+
+/* Update SVG water rectangle fill level by percentage */
+function setWaterLevel(percent) {
+    const svgH = 500; // matches SVG viewBox height
+    const rect = document.getElementById("waterFillRect");
+    if (!rect) return;
+
+    const p = Math.max(0, Math.min(100, percent)) / 100; // clamp 0–100
+    const h = svgH * p;
+
+    rect.setAttribute("y", svgH - h);
+    rect.setAttribute("height", h);
+}
+
+// Track bottle completion boundary (so we can do a “fill to 100 then reset” animation)
+let lastBottleCount = null;
+
+/*
+  Updates bottle:
+  - totalOz: total water intake today
+  - goal: hydrationGoal (oz) treated as "one bottle"
+  - remainder/percent: progress within the current bottle cycle
+*/
+function updateBottle(totalOz) {
+  const goal = Number(hydrationGoal) || 64;
+
+  const bottleCount = Math.floor(totalOz / goal);
+  const remainder = totalOz - (bottleCount * goal);
+  const percent = (remainder / goal) * 100;
+
+  // Update UI text
+  const waterText = document.getElementById("waterText");
+  const tallyText = document.getElementById("bottleTally");
+
+  if (waterText) {
+    waterText.innerText = `${Math.round(totalOz)} oz today (${Math.round(remainder)} / ${Math.round(goal)} in current bottle)`;
+  }
+  if (tallyText) {
+    tallyText.innerText = `Bottles completed: ${bottleCount}`;
+  }
+
+  // First draw on page load
+  if (lastBottleCount === null) {
+    lastBottleCount = bottleCount;
+    setWaterLevel(percent);
+    return;
+  }
+
+  // If bottle count increased, show “full bottle” moment then reset to remainder
+  if (bottleCount > lastBottleCount) {
+    setWaterLevel(100);
+    window.setTimeout(() => setWaterLevel(percent), 550);
+    lastBottleCount = bottleCount;
+    return;
+  }
+
+  // Normal update
+  setWaterLevel(percent);
+}
+
+/* Fetch today's water total from backend */
+async function loadWater() {
+    const res = await fetch("/get_water");
+    const data = await res.json();
+    updateBottle(Number(data.water_oz) || 0);
+}
+
+/* Add an amount (oz) and refresh UI with returned total */
+async function addWater() {
+    let amount = parseFloat(document.getElementById("waterInput").value);
+    if (!amount || amount <= 0) return;
+
+    const res = await fetch("/add_water", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ amount })
+    });
+
+    const data = await res.json();
+    updateBottle(Number(data.water_oz) || 0);
+}
+
+/* Load bottle state when page loads */
+document.addEventListener("DOMContentLoaded", loadWater);
+
+
+/* ---------------------------------------------------------
+   Dashboard masonry layout (prevents short cards from stretching)
+   - Measures each card height and sets grid-row span accordingly
+--------------------------------------------------------- */
+
+function resizeDashboardCard(grid, card) {
+  const rowHeight = parseInt(getComputedStyle(grid).getPropertyValue("grid-auto-rows"), 10);
+  const gap = parseInt(getComputedStyle(grid).getPropertyValue("gap"), 10) || 0;
+
+  // Reset so we measure natural height
+  card.style.gridRowEnd = "auto";
+
+  const h = card.getBoundingClientRect().height;
+  const span = Math.ceil((h + gap) / (rowHeight + gap));
+  card.style.gridRowEnd = `span ${span}`;
+}
+
+function layoutDashboardGrid() {
+  const grid = document.querySelector(".dashboard-grid");
+  if (!grid) return;
+  grid.querySelectorAll(".dash-card").forEach(card => resizeDashboardCard(grid, card));
+}
+
+/* Re-layout after load + on resize */
+window.addEventListener("load", layoutDashboardGrid);
+window.addEventListener("resize", () => {
+  clearTimeout(window.__dashMasonryTO);
+  window.__dashMasonryTO = setTimeout(layoutDashboardGrid, 100);
+});
+
+/* Run after DOM is ready + after delays (fonts/SVG can change heights slightly) */
+document.addEventListener("DOMContentLoaded", () => {
+  layoutDashboardGrid();
+  setTimeout(layoutDashboardGrid, 50);
+  setTimeout(layoutDashboardGrid, 250);
+});
+
+
+/* ---------------------------------------------------------
+   DRINK RECOMMENDATIONS (based on last workout refuel)
+   - Uses last_refuel values rendered by Jinja
+   - Scores drink options and shows top 3
+--------------------------------------------------------- */
+
+// Hydration needs injected from server-side last workout, or zeros if none
+const lastRefuel = {
+  water_oz: {% if stats.last_refuel %}{{ stats.last_refuel.water_oz | round(1) }}{% else %}0{% endif %},
+  sodium_mg: {% if stats.last_refuel %}{{ stats.last_refuel.sodium_mg | round(0) }}{% else %}0{% endif %},
+  potassium_mg: {% if stats.last_refuel %}{{ stats.last_refuel.potassium_mg | round(0) }}{% else %}0{% endif %},
+  magnesium_mg: {% if stats.last_refuel %}{{ stats.last_refuel.magnesium_mg | round(0) }}{% else %}0{% endif %}
+};
+
+// Client-side library of drink electrolyte profiles (edit as you like)
+const drinkOptions = [
+  {
+    key: "liquidiv",
+    name: "Liquid I.V. Hydration Multiplier (1 stick in 16 oz water)",
+    servingLabel: "1 stick",
+    fluidOzPerServing: 16,
+    sodiumMg: 500,
+    potassiumMg: 370,
+    magnesiumMg: 0
+  },
+  {
+    key: "propel",
+    name: "Propel Electrolyte Water (16.9 oz bottle)",
+    servingLabel: "1 bottle (16.9 oz)",
+    fluidOzPerServing: 16.9,
+    sodiumMg: 230,
+    potassiumMg: 60,
+    magnesiumMg: 0
+  },
+  {
+    key: "gatorade",
+    name: "Gatorade Thirst Quencher (12 oz)",
+    servingLabel: "12 oz",
+    fluidOzPerServing: 12,
+    sodiumMg: 160,
+    potassiumMg: 45,
+    magnesiumMg: 0
+  },
+  {
+    key: "gatorlyte",
+    name: "Gatorlyte (20 oz bottle)",
+    servingLabel: "1 bottle (20 oz)",
+    fluidOzPerServing: 20,
+    sodiumMg: 490,
+    potassiumMg: 350,
+    magnesiumMg: 105
+  },
+  {
+    key: "lmnt",
+    name: "LMNT (1 stick mixed in water)",
+    servingLabel: "1 stick",
+    fluidOzPerServing: 16,
+    sodiumMg: 1000,
+    potassiumMg: 200,
+    magnesiumMg: 60
+  },
+  {
+    key: "nuun_sport",
+    name: "Nuun Sport (1 tablet dissolved in water)",
+    servingLabel: "1 tablet",
+    fluidOzPerServing: 16,
+    sodiumMg: 300,
+    potassiumMg: 150,
+    magnesiumMg: 25
+  },
+  {
+    key: "dripdrop",
+    name: "DripDrop ORS (1 stick mixed in water)",
+    servingLabel: "1 stick",
+    fluidOzPerServing: 8,
+    sodiumMg: 330,
+    potassiumMg: 185,
+    magnesiumMg: 39
+  },
+  {
+    key: "skratch_sport",
+    name: "Skratch Labs Hydration Sport Drink Mix (serving mixed in water)",
+    servingLabel: "1 serving",
+    fluidOzPerServing: 16,
+    sodiumMg: 310,
+    potassiumMg: 40,
+    magnesiumMg: 45
+  },
+  {
+    key: "skratch_everyday",
+    name: "Skratch Labs Hydration Everyday Drink Mix (1 serving mixed in water)",
+    servingLabel: "1 serving",
+    fluidOzPerServing: 16,
+    sodiumMg: 400,
+    potassiumMg: 100,
+    magnesiumMg: 50
+  },
+  {
+    key: "pedialyte_sport",
+    name: "Pedialyte Sport (12 oz)",
+    servingLabel: "12 oz",
+    fluidOzPerServing: 12,
+    sodiumMg: 490,
+    potassiumMg: 470,
+    magnesiumMg: 40
+  }
+];
+
+/* Round servings up to nearest 0.5 serving */
+function ceilToHalf(x) {
+  return Math.ceil(x * 2) / 2;
+}
+
+/*
+  Compute a “plan” for a drink option:
+  - Determine how many servings needed to meet electrolytes (max of needed ratios)
+  - Cap servings at 4 to avoid ridiculous recommendations
+  - Score based on servings + overshoot + deficits
+*/
+function computeDrinkPlan(needs, option) {
+  const needNa = Math.max(0, Number(needs.sodium_mg) || 0);
+  const needK  = Math.max(0, Number(needs.potassium_mg) || 0);
+  const needMg = Math.max(0, Number(needs.magnesium_mg) || 0);
+
+  const na = Number(option.sodiumMg) || 0;
+  const k  = Number(option.potassiumMg) || 0;
+  const mg = Number(option.magnesiumMg) || 0;
+
+  // Only compute ratios for electrolytes the drink actually contains (avoid divide-by-zero / false elimination)
+  const ratios = [];
+  if (needNa > 0 && na > 0) ratios.push(needNa / na);
+  if (needK  > 0 && k  > 0) ratios.push(needK / k);
+  if (needMg > 0 && mg > 0) ratios.push(needMg / mg);
+
+  // If drink provides none of the needed electrolytes, skip it
+  if (!ratios.length) return null;
+
+  // Use the max ratio so one servings count covers the limiting electrolyte
+  let servings = Math.min(ceilToHalf(Math.max(...ratios)), 4);
+
+  const provided = {
+    sodium_mg: servings * na,
+    potassium_mg: servings * k,
+    magnesium_mg: servings * mg,
+    fluid_oz: servings * (Number(option.fluidOzPerServing) || 0)
+  };
+
+  // Overshoot: extra electrolytes beyond target (mild penalty)
+  const overshoot =
+    Math.max(0, provided.sodium_mg - needNa) +
+    Math.max(0, provided.potassium_mg - needK) +
+    Math.max(0, provided.magnesium_mg - needMg);
+
+  // Deficit: missing electrolytes (bigger penalty)
+  const deficit =
+    Math.max(0, needNa - provided.sodium_mg) +
+    Math.max(0, needK - provided.potassium_mg) +
+    Math.max(0, needMg - provided.magnesium_mg);
+
+  // Score to sort plans: fewer servings + less mismatch is better
+  const score = (servings * 500) + overshoot + (deficit * 2);
+
+  return { option, servings, provided, score };
+}
+
+/* Render the top 3 drink plans into the dashboard card */
+function renderDrinkRecs() {
+  const box = document.getElementById("drinkRecBox");
+  const list = document.getElementById("drinkRecList");
+  if (!box || !list) return;
+
+  // No workout yet → hide entire section
+  if (!lastRefuel || (lastRefuel.sodium_mg + lastRefuel.potassium_mg + lastRefuel.magnesium_mg) <= 0) {
+    box.style.display = "none";
+    return;
+  }
+
+  // Score all options, sort best to worst, take top 3
+  const plans = drinkOptions
+    .map(opt => computeDrinkPlan(lastRefuel, opt))
+    .filter(Boolean)
+    .sort((a, b) => a.score - b.score)
+    .slice(0, 3);
+
+  if (!plans.length) {
+    list.innerHTML = "No drink options match your current electrolyte needs.";
+    return;
+  }
+
+  // Plain water to finish remaining fluid target after best plan
+  const remainingWater = Math.max(
+    0,
+    (Number(lastRefuel.water_oz) || 0) - plans[0].provided.fluid_oz
+  );
+
+  list.innerHTML = `
+    <ol style="margin:6px 0 0 18px; padding:0;">
+      ${plans.map(p => {
+        const s = p.servings;
+        const servingText = (s === 1) ? p.option.servingLabel : `${s} × ${p.option.servingLabel}`;
+        return `
+          <li style="margin-bottom:6px;">
+            <div><strong>${p.option.name}</strong></div>
+            <div>${servingText} • ~${Math.round(p.provided.fluid_oz)} oz fluid</div>
+            <div style="color:#666; font-size:12px;">Provides ~${Math.round(p.provided.sodium_mg)} mg Na, ${Math.round(p.provided.potassium_mg)} mg K, ${Math.round(p.provided.magnesium_mg)} mg Mg</div>
+          </li>
+        `;
+      }).join("")}
+    </ol>
+    <div style="margin-top:6px; color:#666; font-size:12px;">
+      After your drink(s), you’ll still want about <strong>${Math.round(remainingWater)}</strong> oz of plain water to hit the full refuel water target.
+    </div>
+  `;
+}
+
+document.addEventListener("DOMContentLoaded", renderDrinkRecs);
+
+
+/* ---------------------------------------------------------
+   CHARTS (Chart.js)
+   All chart series are injected by backend via the `chart` dict.
+--------------------------------------------------------- */
+
+/* SWEAT RATE OVER TIME (line) */
+new Chart(document.getElementById('sweatRateChart'), {
+    type: 'line',
+    data: {
+        labels: {{ chart.dates | safe }},
+        datasets: [{
+            label: "Sweat Rate (L/hr)",
+            data: {{ chart.sweat_rate | safe }},
+
+            /* Styling */
+            borderColor: "#007BFF",
+            backgroundColor: "rgba(0,123,255,0.15)",
+            tension: 0.25,
+            borderWidth: 2
+        }]
+    },
+    options: {
+        scales: { y: { beginAtZero: true } }
+    }
+});
+
+/* WATER NEEDED PER WORKOUT (bar) */
+new Chart(document.getElementById('waterChart'), {
+    type: 'bar',
+    data: {
+        labels: {{ chart.dates | safe }},
+        datasets: [{
+            label: "Water Needed (oz)",
+            data: {{ chart.water_oz | safe }},
+            backgroundColor: "#28a745"
+        }]
+    },
+    options: {
+        scales: { y: { beginAtZero: true } }
+    }
+});
+
+/* TEMPERATURE vs SWEAT RATE (scatter) */
 new Chart(document.getElementById('tempScatterChart'), {
     type: 'scatter',
     data: {
@@ -623,59 +1197,11 @@ new Chart(document.getElementById('tempScatterChart'), {
     },
     options: {
         scales: {
-            x: { title: { display: true, text: "Temperature (°F)" } },
+            x: { title: { display: true, text: "Temperature (°F)" }},
             y: { title: { display: true, text: "Sweat Rate (L/hr)" }, beginAtZero: true }
         }
     }
 });
-
-/* -------------------------
-   CHART: WATER PER WORKOUT
-----------------------------*/
-
-new Chart(document.getElementById('waterChart'), {
-    type: 'bar',
-    data: {
-        labels: {{ chart.dates | safe }},
-        datasets: [{
-            label: "Water Needed (oz)",
-            data: {{ chart.water_oz | safe }},
-            backgroundColor: "#28a745",
-        }]
-    },
-    options: {
-        scales: {
-            y: { beginAtZero: true }
-        }
-    }
-});
-
-
-/* -------------------------
-   CHART: TEMP VS SWEAT RATE
-----------------------------*/
-
-/* SWEAT RATE OVER TIME */
-new Chart(document.getElementById('sweatRateChart'), {
-    type: 'line',
-    data: {
-        labels: {{ chart.dates | safe }},
-        datasets: [{
-            label: "Sweat Rate (L/hr)",
-            data: {{ chart.sweat_rate | safe }},
-            borderColor: "#007BFF",
-            backgroundColor: "rgba(0,123,255,0.15)",
-            borderWidth: 2,
-            tension: 0.25
-        }]
-    },
-    options: {
-        scales: {
-            y: { beginAtZero: true }
-        }
-    }
-});
-
 </script>
 
 {% endblock %}

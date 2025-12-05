@@ -11,8 +11,10 @@
             <tr>
                 <th>Date</th>
                 <th>Duration (min)</th>
-                <th>Water (mL)</th>
+                <th>Water (oz)</th>
                 <th>Sodium (mg)</th>
+                <th>Potassium (mg)</th>
+                <th>Magnesium (mg)</th>
                 <th>Alert</th>
             </tr>
         </thead>
@@ -22,8 +24,10 @@
             <tr>
                 <td>{{ s.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
                 <td>{{ s.duration_min }}</td>
-                <td>{{ s.water_needed_ml }}</td>
-                <td>{{ s.sodium_mg }}</td>
+                <td>{{ ((s.water_needed_ml or 0) / 29.5735) | round(1) }} oz</td>
+                <td>{{ (s.sodium_mg or 0) | round(0) }}</td>
+                <td>{{ (s.potassium_mg or 0) | round(0) }}</td>
+                <td>{{ (s.magnesium_mg or 0) | round(0) }}</td>
                 <td>
                     {% if s.dehydration_alert %}
                         <span class="text-danger fw-bold">⚠ Yes</span>

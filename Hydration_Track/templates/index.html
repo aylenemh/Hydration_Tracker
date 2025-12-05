@@ -1,0 +1,681 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background: #f1f1f1;
+    }
+        .dashboard-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        margin-top: 10px;
+    }
+
+    .dash-card {
+        background: #ffffff;          /* style A: white cards */
+        border-radius: 8px;
+        border: 1px solid #e0e0e0;
+        padding: 16px 18px;
+        flex: 1 1 calc(50% - 16px);   /* 2 cards per row */
+        min-width: 260px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+    }
+
+    .dash-card-title {
+        font-size: 14px;
+        color: #555;
+        margin-bottom: 6px;
+    }
+
+    .dash-card-value {
+        font-size: 22px;
+        font-weight: 600;
+        color: #222;
+    }
+
+    .dash-card-sub {
+        font-size: 12px;
+        color: #888;
+        margin-top: 4px;
+    }
+
+    label {
+        position: relative;
+        display: inline-block;
+        margin-bottom: 6px;
+    }
+
+    .tooltip-icon {
+        display: inline-block;
+        background: #007BFF;
+        color: white;
+        border-radius: 50%;
+        width: 18px;
+        height: 18px;
+        text-align: center;
+        line-height: 18px;
+        font-size: 12px;
+        margin-left: 6px;
+        cursor: pointer;
+    }
+
+    .tooltip-box {
+        display: none;
+        position: absolute;
+        background: #333;
+        color: white;
+        padding: 10px;
+        border-radius: 6px;
+        width: 220px;
+        z-index: 10;
+        top: 0;        /* aligns with label vertically */
+        left: 110%;    /* places tooltip just to the right of label */
+    }
+
+    .tooltip-close {
+        float: right;
+        cursor: pointer;
+        margin-left: 8px;
+        color: #ff7777;
+        font-weight: bold;
+    }
+    .tab {
+        display: flex;
+        background-color: #333;
+        margin-bottom: 20px;
+    }
+
+    .tab button {
+        flex: 1;
+        padding: 14px 16px;
+        background-color: inherit;
+        color: white;
+        border: none;
+        cursor: pointer;
+        font-size: 16px;
+    }
+
+    .tab button:hover {
+        background-color: #444;
+    }
+
+    .tab button.active {
+        background-color: #007BFF;
+    }
+
+    .tabcontent {
+        display: none;
+        padding: 20px;
+        background: white;
+        border-radius: 8px;
+    }
+
+    .container {
+        max-width: 900px;
+    }
+
+    input {
+        padding: 8px;
+        font-size: 16px;
+        width: 100%;
+        margin: 8px 0;
+    }
+
+    .toggle-group {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+    }
+
+    .toggle-btn {
+        padding: 6px 14px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+        background: #eee;
+        cursor: pointer;
+    }
+
+    .toggle-btn.active {
+        background: #007BFF;
+        color: white;
+        border-color: #007BFF;
+    }
+
+    button.calculate-btn {
+        width: 100%;
+        padding: 10px 16px;
+        background: #007BFF;
+        color: white;
+        border: none;
+        cursor: pointer;
+        border-radius: 5px;
+        margin-top: 15px;
+    }
+
+    button.calculate-btn:hover {
+        background: #005fcc;
+    }
+
+    #result-box {
+        margin-top: 20px;
+        background: #e9f5ff;
+        padding: 16px;
+        border-radius: 6px;
+        border: 1px solid #b5daff;
+    }
+
+    /* TOOLTIP STYLES */
+    .tooltip-icon {
+        display: inline-block;
+        background: #007BFF;
+        color: white;
+        border-radius: 50%;
+        width: 18px;
+        height: 18px;
+        text-align: center;
+        line-height: 18px;
+        font-size: 12px;
+        margin-left: 6px;
+        cursor: pointer;
+        position: relative;
+    }
+
+    .tooltip-box {
+        display: none;
+        position: absolute;
+        background: #333;
+        color: white;
+        padding: 10px;
+        border-radius: 6px;
+        width: 240px;
+        z-index: 10;
+        top: 22px;
+        left: 0;
+        font-size: 14px;
+    }
+
+    .tooltip-close {
+        float: right;
+        cursor: pointer;
+        margin-left: 8px;
+        color: #ff7777;
+        font-weight: bold;
+    }
+</style>
+
+
+<!-- TAB BAR -->
+<div class="tab">
+    <button class="tablinks" onclick="openTab(event, 'Dashboard')" id="defaultOpen">Dashboard</button>
+    <button class="tablinks" onclick="openTab(event, 'HydrationCalc')">Hydration Calculator</button>
+    <button class="tablinks" onclick="openTab(event, 'History')">Activity History</button>
+    <button class="tablinks" onclick="openTab(event, 'Settings')">Settings</button>
+    <button class="tablinks" onclick="openTab(event, 'Analytics')">Analytics</button>
+</div>
+
+
+<!-- DASHBOARD TAB -->
+<div id="Dashboard" class="tabcontent container">
+    <h2>Dashboard</h2>
+    <p class="text-muted">Overview of your recent training and hydration.</p>
+
+    <div class="dashboard-grid">
+        <!-- Today’s Workouts -->
+        <div class="dash-card">
+            <div class="dash-card-title">Today’s Workouts</div>
+            <div class="dash-card-value">
+                {{ stats.today_workouts or 0 }}
+            </div>
+            <div class="dash-card-sub">Workouts logged since midnight</div>
+        </div>
+
+        <!-- Lifetime Workouts -->
+        <div class="dash-card">
+            <div class="dash-card-title">Lifetime Workouts</div>
+            <div class="dash-card-value">
+                {{ stats.lifetime_workouts or 0 }}
+            </div>
+            <div class="dash-card-sub">Total sessions saved in HydrateTrack</div>
+        </div>
+
+        <!-- Average Sweat Rate (last 7 days) -->
+        <div class="dash-card">
+            <div class="dash-card-title">Avg Sweat Rate (7 days)</div>
+            <div class="dash-card-value">
+                {% if stats.avg_sweat_rate is not none %}
+                    {{ '%.2f'|format(stats.avg_sweat_rate) }} L/hr
+                {% else %}
+                    —
+                {% endif %}
+            </div>
+            <div class="dash-card-sub">Based on workouts from the last 7 days</div>
+        </div>
+
+        <!-- Total Water Needed (last 7 days) -->
+        <div class="dash-card">
+            <div class="dash-card-title">Water Needed (7 days)</div>
+            <div class="dash-card-value">
+                {% if stats.total_water_oz_7d is not none %}
+                    {{ '%.1f'|format(stats.total_water_oz_7d) }} oz
+                {% else %}
+                    —
+                {% endif %}
+            </div>
+            <div class="dash-card-sub">Total recommended fluid over the last week</div>
+        </div>
+
+        <div class="dash-card">
+            <div class="dash-card-title">Daily Hydration Goal</div>
+            <div class="dash-card-value">
+                {% if stats.hydration_goal_oz %}
+                    {{ '%.0f'|format(stats.hydration_goal_oz) }} oz
+                {% else %}
+                    —
+                {% endif %}
+            </div>
+            <div class="dash-card-sub">Based on weight, sweat rate & climate</div>
+        </div>
+
+        <!-- Highest Temperature Workout -->
+        <div class="dash-card">
+            <div class="dash-card-title">Warmest Workout (7 days)</div>
+            <div class="dash-card-value">
+                {% if stats.max_temp_f is not none %}
+                    {{ '%.1f'|format(stats.max_temp_f) }} °F
+                {% else %}
+                    —
+                {% endif %}
+            </div>
+            <div class="dash-card-sub">Highest recorded temperature in the last week</div>
+        </div>
+        <!-- Total Water Needed Today -->
+        <div class="dash-card">
+            <div class="dash-card-title">Water Needed Today</div>
+            <div class="dash-card-value">
+                {{ '%.1f'|format(stats.total_water_oz_today) }} oz
+            </div>
+            <div class="dash-card-sub">Sum of today’s hydration recommendations</div>
+        </div>
+    </div>
+</div>
+
+
+<!-- HYDRATION CALCULATOR TAB -->
+<div id="HydrationCalc" class="tabcontent container">
+    <h2>Hydration Calculator</h2>
+
+    <!-- WEIGHT -->
+    <label>
+        Weight:
+        <span class="tooltip-icon" onclick="toggleTip('wTip')">i</span>
+        <span id="wTip" class="tooltip-box">
+            Your weight helps estimate total sweat loss and hydration needs.
+            <span class="tooltip-close" onclick="toggleTip('wTip')">x</span>
+        </span>
+    </label>
+    <input type="number" id="weightInput">
+
+    <div class="toggle-group">
+        <button id="kgBtn" class="toggle-btn">kg</button>
+        <button id="lbsBtn" class="toggle-btn">lbs</button>
+    </div>
+
+    <!-- SEX -->
+    <div style="margin-bottom: 16px;">
+        <label>
+            Sex:
+            <span class="tooltip-icon" onclick="toggleTip('sTip')">i</span>
+            <span id="sTip" class="tooltip-box">
+                Sex affects electrolyte recommendations because males and females lose minerals differently.
+                <span class="tooltip-close" onclick="toggleTip('sTip')">x</span>
+            </span>
+        </label>
+        <select id="sexInput" style="width:100%; margin-top:6px;">
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+        </select>
+    </div>
+
+    <!-- DURATION -->
+    <label>
+        Duration (min):
+        <span class="tooltip-icon" onclick="toggleTip('dTip')">i</span>
+        <span id="dTip" class="tooltip-box">
+            Enter the total workout duration in minutes.
+            <span class="tooltip-close" onclick="toggleTip('dTip')">x</span>
+        </span>
+    </label>
+    <input type="number" id="durationInput">
+
+    <!-- HEART RATE -->
+    <label>
+        Heart Rate (bpm):
+        <span class="tooltip-icon" onclick="toggleTip('hTip')">i</span>
+        <span id="hTip" class="tooltip-box">
+            Average heart rate during the activity. Higher HR increases sweat rate.
+            <span class="tooltip-close" onclick="toggleTip('hTip')">x</span>
+        </span>
+    </label>
+    <input type="number" id="hrInput">
+
+    <!-- TEMPERATURE -->
+    <label>
+        Temperature:
+        <span class="tooltip-icon" onclick="toggleTip('tTip')">i</span>
+        <span id="tTip" class="tooltip-box">
+            Environmental temperature impacts sweat rate. Enter the surrounding temperature.
+            <span class="tooltip-close" onclick="toggleTip('tTip')">x</span>
+        </span>
+    </label>
+    <input type="number" id="tempInput" value="22">
+
+    <div class="toggle-group">
+        <button id="cBtn" class="toggle-btn">°C</button>
+        <button id="fBtn" class="toggle-btn">°F</button>
+    </div>
+
+    <button class="calculate-btn" onclick="sendCalculation()">Calculate</button>
+
+    <div id="result-box" style="display:none;"></div>
+</div>
+
+
+<!-- HISTORY TAB -->
+<div id="History" class="tabcontent container">
+    <h2>Activity History</h2>
+
+    {% if sessions|length == 0 %}
+        <p>No workouts saved yet.</p>
+    {% else %}
+        <table class="table table-striped mt-3">
+            <thead>
+                <tr>
+                    <th>Date / Time</th>
+                    <th>Duration</th>
+                    <th>Water (oz)</th>
+                    <th>Sodium (mg)</th>
+                    <th>Alert</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in sessions %}
+                <tr>
+                    <td>{{ s.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td>{{ s.duration_min }}</td>
+                    <td>{{ (s.water_needed_ml / 29.5735) | round(1) }}</td>
+                    <td>{{ s.sodium_mg }}</td>
+                    <td>
+                        {% if s.dehydration_alert %}
+                            <span class="text-danger fw-bold">⚠ Yes</span>
+                        {% else %}
+                            No
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+</div>
+
+
+<!-- SETTINGS TAB -->
+<div id="Settings" class="tabcontent container">
+    <h2>Settings</h2>
+    <p class="text-muted">Manage your account and app preferences.</p>
+
+    <div class="settings-section" style="margin-top: 20px;">
+        <h4>Account</h4>
+
+        <a href="/logout">
+            <button class="btn btn-danger"
+                    style="padding:10px 16px; width:200px; margin-top:10px;">
+                Log Out
+            </button>
+        </a>
+    </div>
+
+    <div class="settings-section" style="margin-top: 35px;">
+        <h4>Preferences (coming soon)</h4>
+        <ul>
+            <li>Unit System (Metric / US)</li>
+            <li>Strava Sync</li>
+            <li>Profile Editing</li>
+        </ul>
+    </div>
+</div>
+
+    <!-- ANALYTICS TAB -->
+    <div id="Analytics" class="tabcontent container">
+        <h2>Analytics</h2>
+        <p class="text-muted">Visualize your hydration and sweat data.</p>
+
+        <!-- Sweat Rate Over Time -->
+    <div style="margin-top:20px;">
+        <h4>Sweat Rate Over Time</h4>
+        <canvas id="sweatRateChart" height="120"></canvas>
+    </div>
+
+    <!-- Water Needed Per Workout -->
+    <div style="margin-top:40px;">
+        <h4>Water Needed Per Workout</h4>
+        <canvas id="waterChart" height="120"></canvas>
+    </div>
+
+    <!-- Temperature vs Sweat Rate -->
+    <div style="margin-top:40px;">
+        <h4>Temperature vs Sweat Rate</h4>
+        <canvas id="tempScatterChart" height="120"></canvas>
+    </div>
+</div>
+
+
+<script>
+    /* TAB SWITCHING */
+    function openTab(evt, tabName) {
+        let tabcontent = document.getElementsByClassName("tabcontent");
+        let tablinks = document.getElementsByClassName("tablinks");
+
+        for (let i = 0; i < tabcontent.length; i++) {
+            tabcontent[i].style.display = "none";
+        }
+        for (let i = 0; i < tablinks.length; i++) {
+            tablinks[i].classList.remove("active");
+        }
+        document.getElementById(tabName).style.display = "block";
+        evt.currentTarget.classList.add("active");
+    }
+    document.getElementById("defaultOpen").click();
+
+
+    /* TOOLTIP FUNCTION */
+    function toggleTip(id) {
+        const box = document.getElementById(id);
+        box.style.display = (box.style.display === "block") ? "none" : "block";
+    }
+
+
+    /* UNIT PREFERENCES */
+    let weightUnit = localStorage.getItem("weightUnit") || "kg";
+    let tempUnit = localStorage.getItem("tempUnit") || "c";
+
+    function updateToggleButtons() {
+        document.getElementById("kgBtn").classList.toggle("active", weightUnit === "kg");
+        document.getElementById("lbsBtn").classList.toggle("active", weightUnit === "lbs");
+
+        document.getElementById("cBtn").classList.toggle("active", tempUnit === "c");
+        document.getElementById("fBtn").classList.toggle("active", tempUnit === "f");
+    }
+
+    document.getElementById("kgBtn").onclick = () => { weightUnit = "kg"; localStorage.setItem("weightUnit","kg"); updateToggleButtons(); };
+    document.getElementById("lbsBtn").onclick = () => { weightUnit = "lbs"; localStorage.setItem("weightUnit","lbs"); updateToggleButtons(); };
+
+    document.getElementById("cBtn").onclick = () => { tempUnit = "c"; localStorage.setItem("tempUnit","c"); updateToggleButtons(); };
+    document.getElementById("fBtn").onclick = () => { tempUnit = "f"; localStorage.setItem("tempUnit","f"); updateToggleButtons(); };
+
+    updateToggleButtons();
+
+/* SEND CALCULATION */
+async function sendCalculation() {
+
+    // -----------------------------
+    // FRONT-END VALIDATION
+    // -----------------------------
+
+    let weight = parseFloat(document.getElementById("weightInput").value);
+    let duration = parseFloat(document.getElementById("durationInput").value);
+    let heart_rate = parseFloat(document.getElementById("hrInput").value);
+    let temp = parseFloat(document.getElementById("tempInput").value);
+
+    // Weight (kg after conversion)
+    if (isNaN(weight) || weight < 30 || weight > 300) {
+        alert("Please enter a valid weight between 30–300 kg.");
+        return;
+    }
+
+    // Duration
+    if (isNaN(duration) || duration < 1 || duration > 600) {
+        alert("Please enter a valid workout duration between 1–600 minutes.");
+        return;
+    }
+
+    // Heart Rate
+    if (isNaN(heart_rate) || heart_rate < 30 || heart_rate > 230) {
+        alert("Please enter a valid heart rate between 30–230 bpm.");
+        return;
+    }
+
+    // Temperature (will be converted)
+    if (isNaN(temp) || temp < -20 || temp > 60) {
+        alert("Please enter a valid temperature between -20°C and 60°C.");
+        return;
+    }
+
+    // -----------------------------
+    // UNIT CONVERSION
+    // -----------------------------
+
+    if (weightUnit === "lbs") weight *= 0.453592;
+    if (tempUnit === "f") temp = (temp - 32) * (5 / 9);
+
+    // -----------------------------
+    // BUILD JSON PAYLOAD
+    // -----------------------------
+
+    const data = {
+        weight,
+        sex: document.getElementById("sexInput").value,
+        duration,
+        heart_rate,
+        temp
+    };
+
+    // -----------------------------
+    // SEND REQUEST TO SERVER
+    // -----------------------------
+
+    const response = await fetch("/calculate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+    });
+
+    const result = await response.json();
+
+    // -----------------------------
+    // DISPLAY RESULTS
+    // -----------------------------
+
+    document.getElementById("result-box").style.display = "block";
+    document.getElementById("result-box").innerHTML = `
+        <strong>Water:</strong> ${result.water_ml.toFixed(0)} mL<br>
+        <strong>Sodium:</strong> ${result.sodium_mg.toFixed(0)} mg<br>
+        <strong>Potassium:</strong> ${result.potassium_mg.toFixed(0)} mg<br>
+        <strong>Magnesium:</strong> ${result.magnesium_mg.toFixed(0)} mg<br>
+        <em>(Sweat Rate: ${result.sweat_rate_L_per_hr.toFixed(2)} L/hr)</em><br>
+    `;
+}
+
+    /* CHARTJS PLACEHOLDER */
+    let ctx1 = document.getElementById('sweatRateChart');
+    let ctx2 = document.getElementById('waterChart');
+    let ctx3 = document.getElementById('tempScatterChart');
+    // Actual chart data will be injected later
+/* -------------------------
+   CHART: SWEAT RATE OVER TIME
+----------------------------*/
+
+new Chart(document.getElementById('tempScatterChart'), {
+    type: 'scatter',
+    data: {
+        datasets: [{
+            label: "Temperature (°F) vs Sweat Rate",
+            data: {{ chart.temp_vs_sweat | safe }},
+            backgroundColor: "#dc3545"
+        }]
+    },
+    options: {
+        scales: {
+            x: { title: { display: true, text: "Temperature (°F)" } },
+            y: { title: { display: true, text: "Sweat Rate (L/hr)" }, beginAtZero: true }
+        }
+    }
+});
+
+/* -------------------------
+   CHART: WATER PER WORKOUT
+----------------------------*/
+
+new Chart(document.getElementById('waterChart'), {
+    type: 'bar',
+    data: {
+        labels: {{ chart.dates | safe }},
+        datasets: [{
+            label: "Water Needed (oz)",
+            data: {{ chart.water_oz | safe }},
+            backgroundColor: "#28a745",
+        }]
+    },
+    options: {
+        scales: {
+            y: { beginAtZero: true }
+        }
+    }
+});
+
+
+/* -------------------------
+   CHART: TEMP VS SWEAT RATE
+----------------------------*/
+
+/* SWEAT RATE OVER TIME */
+new Chart(document.getElementById('sweatRateChart'), {
+    type: 'line',
+    data: {
+        labels: {{ chart.dates | safe }},
+        datasets: [{
+            label: "Sweat Rate (L/hr)",
+            data: {{ chart.sweat_rate | safe }},
+            borderColor: "#007BFF",
+            backgroundColor: "rgba(0,123,255,0.15)",
+            borderWidth: 2,
+            tension: 0.25
+        }]
+    },
+    options: {
+        scales: {
+            y: { beginAtZero: true }
+        }
+    }
+});
+
+</script>
+
+{% endblock %}

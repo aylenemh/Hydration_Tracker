@@ -1,0 +1,40 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<h2 class="mb-4">Workout History</h2>
+
+{% if sessions|length == 0 %}
+    <p>No activity recorded yet.</p>
+{% else %}
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Duration (min)</th>
+                <th>Water (mL)</th>
+                <th>Sodium (mg)</th>
+                <th>Alert</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for s in sessions %}
+            <tr>
+                <td>{{ s.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td>{{ s.duration_min }}</td>
+                <td>{{ s.water_needed_ml }}</td>
+                <td>{{ s.sodium_mg }}</td>
+                <td>
+                    {% if s.dehydration_alert %}
+                        <span class="text-danger fw-bold">⚠ Yes</span>
+                    {% else %}
+                        No
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endif %}
+
+{% endblock %}

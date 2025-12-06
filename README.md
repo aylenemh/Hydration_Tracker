@@ -1,33 +1,121 @@
-# HydrateTrack
+# HydrateTrack 💧  
+Smart Hydration & Electrolyte Guidance for Athletes
 
-HydrateTrack is a Flask-based hydration & workout tracking app that helps athletes and everyday users calculate hydration needs, track daily water intake, and monitor sweat-rate and electrolyte loss over time. It turns guesswork into data-driven hydration.
+HydrateTrack is a Flask-based web app that helps athletes and active users understand **how much water and electrolytes they should consume** after a workout. It combines workout inputs (duration, heart rate, temperature, sex, weight) with a custom hydration model to estimate:
 
----
-
-## 🚀 Features
-
-- Personalized hydration calculations based on weight, heart rate, workout duration, and temperature  
-- Sweat rate, water loss, and electrolyte (sodium, potassium, magnesium) recommendations  
-- Persistent user accounts with secure login/registration  
-- Daily water intake tracker with interactive “water bottle” animation  
-- Analytics dashboard: sweat rate over time, water needs per workout, temperature vs sweat-rate charts  
-- Workout history logging, date-based water tracking, and drink recommendations for post-exercise recovery  
-- Basic security: password hashing, input validation, rate limiting, and session-based access control  
+- Sweat rate (L/hr)  
+- Total sweat loss (L)  
+- Recommended water intake (mL / oz)  
+- Sodium, potassium, and magnesium needs (mg)  
+- Daily hydration goal and bottle-style progress visualization  
 
 ---
 
-## 📦 Tech Stack & Dependencies
+## Table of Contents
 
-- **Python 3.9+**  
-- **Flask** — web framework  
-- **Flask-Login** — user authentication  
-- **Flask-Limiter** — rate limiting for security  
-- **SQLAlchemy + SQLite** — database ORM + storage  
-- **HTML / CSS / JavaScript** (with Chart.js via CDN) — frontend & data visualization  
+1. [Overview](#overview)  
+2. [Core Features](#core-features)  
+3. [Tech Stack](#tech-stack)  
+4. [Project Structure](#project-structure)  
+5. [Installation & Setup (Replicable)](#installation--setup-replicable)  
+   - [Using the Terminal](#using-the-terminal)  
+   - [Using an IDE (PyCharm--VS-Code)](#using-an-ide-pycharm--vs-code)  
+6. [Usage Flow](#usage-flow)  
+7. [Security & Data Integrity](#security--data-integrity)  
+8. [Screenshots](#screenshots)  
+9. [Development Environment](#development-environment)  
+10. [Contribution & Extension Ideas](#contribution--extension-ideas)  
+11. [License & Disclaimer](#license--disclaimer)  
+12. [Contact / Acknowledgments](#contact--acknowledgments)
 
 ---
 
-## 🛠 Installation & Setup (Replicable)
+## Overview
+
+**HydrateTrack** helps answer a common question for athletes:
+
+> *“How much should I drink and what electrolytes do I need after this workout?”*
+
+The app uses:
+
+- Heart rate  
+- Workout duration  
+- Temperature  
+- Body weight  
+- Sex  
+
+to estimate **sweat rate, total sweat loss, and personalized hydration recommendations**, then visualizes progress through a **water bottle fill UI** and basic analytics.
+
+The goal is to give users **clear, actionable guidance** instead of generic “drink more water” advice.
+
+---
+
+## Core Features
+
+- 🔐 **User Accounts & Authentication**
+  - Register / login / logout (Flask-Login)
+  - Unique usernames enforced
+  - Simple access control (must be logged in to use the app)
+
+- 🧾 **First-Time Profile Setup**
+  - Lightweight onboarding at `/setup`
+  - User enters weight (lbs) and sex once
+  - Used to compute an initial **daily hydration goal**
+
+- 💧 **Hydration Calculator**
+  - Inputs: weight, sex, duration, heart rate, temperature
+  - Computes:
+    - Sweat rate (L/hr)
+    - Total sweat loss (L)
+    - Water needed (mL & oz)
+    - Sodium, potassium, magnesium recommendations (mg)
+  - Temperature adjustment factors for hot conditions
+
+- 📊 **Dashboard & Analytics**
+  - Daily hydration progress with **animated water bottle**
+  - Today’s workouts & water needs
+  - 7-day average sweat rate
+  - Water needed per workout (bar chart)
+  - Temperature vs sweat rate (scatter plot)
+
+- 🥤 **Refuel Suggestions**
+  - Suggests drink options (e.g., water, sports drink, electrolyte mix)
+  - Based on **today’s total electrolyte needs**
+
+- 🗂️ **History**
+  - Table of past workout sessions
+  - Date/time, duration, water, sodium, and dehydration alert
+
+- 🚰 **Daily Water Tracker**
+  - Adds water consumed in oz
+  - Visual bottle fill based on **personalized daily hydration goal**
+
+---
+
+## Tech Stack
+
+- **Backend**
+  - Python 3.x
+  - Flask
+  - Flask-Login (auth)
+  - Flask-Limiter (rate limiting)
+  - SQLAlchemy (ORM)
+
+- **Frontend**
+  - HTML / CSS / Jinja2 templates
+  - JavaScript (fetch API)
+  - Chart.js (charts)
+
+- **Database**
+  - SQLite (`hydration.db`)
+
+---
+
+## Installation & Setup (Replicable)
+
+HydrateTrack can be run from any Python environment (terminal, VS Code, PyCharm, etc.). Follow the steps below to install and launch the application.
+
+### Using the Terminal
 
 Follow these steps to run HydrateTrack locally:
 1. Clone the repo
@@ -48,10 +136,33 @@ python app.py
 
 Then open your browser at: http://127.0.0.1:5000
 
-The SQLite database (hydration.db) will be created automatically on first run.
+### Using an IDE (PyCharm / VS Code)
+	1.	Open the Hydration_Track folder in your IDE
+	2.	Create a virtual environment (IDE will prompt or allow through settings)
+	3.	Install dependencies using: pip install -r requirements.txt
+	4.	Run app.py using the IDE’s built-in run configuration
+
+The app will launch exactly the same as the terminal method.
+
+## Environment Variables
+
+HydrateTrack uses a .env file to store application settings.
+In the project root, create: .env
+
+Add:
+	SECRET_KEY=supersecretkey123
+	DATABASE_URL=sqlite:///hydration.db
+
+## Database Initialization & Reset
+
+The SQLite database is automatically generated when the app is started:
+
+To reset the database:
+	rm hydration.db
+	python app.py
 
 
-## ✅ Usage Flow
+## Usage Flow
 	1.	Register a new account
 	2.	Log in
 	3.	On first login, complete the profile setup (weight + sex) — this sets your personal hydration goal
@@ -60,7 +171,7 @@ The SQLite database (hydration.db) will be created automatically on first run.
 	6.	Add water intake throughout the day — watch the water bottle fill up!
 	7.	Drink recommendations provided based on your total electrolyte loss
 
-## 🔐 Security & Data Integrity
+## Security & Data Integrity
 	•	Passwords are stored using secure hashing (no plain-text storage)
 	•	Unique usernames enforced to prevent account duplication
 	•	Rate limiting to prevent abuse or brute-force attempts
@@ -68,7 +179,7 @@ The SQLite database (hydration.db) will be created automatically on first run.
 	•	Session-based authentication using Flask-Login
 	•	ORM-based database operations (SQLAlchemy) to avoid SQL injection vulnerabilities
 
-## 📁 Project Structure 
+## Project Structure 
 
 
 
@@ -77,7 +188,7 @@ The SQLite database (hydration.db) will be created automatically on first run.
 
 
 
-## 🖼 Screenshots
+## Screenshots
 
 These images help illustrate key parts of the application.
 
@@ -98,12 +209,12 @@ These images help illustrate key parts of the application.
 
 
 
-## 🧑‍💻 Development Environment
+## Development Environment
 
 This project was developed using PyCharm, but the codebase is IDE-independent. You can use any Python-based development environment (VS Code, Sublime, terminal, etc.) — the setup works from the command line and does not rely on IDE-specific features.
 
 
-##  📝 Contribution & Extension Ideas
+##  Contribution & Extension Ideas
 
 Want to help or extend HydrateTrack? Great! Possible future enhancements:
 	•	Unit preference toggle (metric ↔ imperial)
@@ -116,13 +227,13 @@ Want to help or extend HydrateTrack? Great! Possible future enhancements:
 Feel free to fork the repo and submit pull requests for new features or bug fixes.
 
 
-##  🧾 License & Disclaimer
+##  License & Disclaimer
 
 This project is provided for academic purposes and personal use only.
 Hydration recommendations are based on a simplified model and should not substitute professional medical or dietary advice.
 
 
-##  📬 Contact / Acknowledgments
+##  Contact / Acknowledgments
 Created by: Nathan Leppo & Aylene Noy
 
 Thanks for checking out HydrateTrack! 💧

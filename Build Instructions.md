@@ -1,3 +1,5 @@
+# Build Instructions
+
 This section explains how another developer can fully set up, run, and test the HydrateTrack application from scratch.
 
 1. Development Environment
@@ -9,6 +11,9 @@ Any Python-based development environment may be used, including:
 	•	Sublime Text
 	•	Terminal-only workflow
 	•	Jupyter / Colab (for helper scripts)
+
+⚠️ Important:
+If using VS Code or PyCharm, you may simply open the project folder, install dependencies, and run python app.py from the built-in terminal to get everything to work.
 
 All setup, dependency installation, and application execution can be performed entirely from the terminal.
 

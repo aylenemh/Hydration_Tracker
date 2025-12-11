@@ -113,26 +113,36 @@ The goal is to give users **clear, actionable guidance** instead of generic “d
 
 ## Installation & Setup (Replicable)
 
+For more details look at Build Instructions.md
+
 HydrateTrack can be run from any Python environment (terminal, VS Code, PyCharm, etc.). Follow the steps below to install and launch the application.
 
 ### Using the Terminal
 
 Follow these steps to run HydrateTrack locally:
 1. Clone the repo
-git clone https://github.com/<your-username>/Hydration_Tracker.git
-cd Hydration_Tracker/Hydration_Track
+   
+		git clone https://github.com/aylenemh/Hydration_Tracker.git
 
-2. (Optional but recommended) Create a virtual environment
-python3 -m venv venv
-source venv/bin/activate      # macOS / Linux
-or on Windows:
-venv\Scripts\activate
+		cd Hydration_Tracker/Hydration_Track
 
-3. Install dependencies
-pip install -r requirements.txt
+3. (Optional but recommended) Create a virtual environment
+   	macOS / Linux:
+   
+		python3 -m venv venv
+		
+		source venv/bin/activate     
+	Windows:
 
-4. Run the application
-python app.py
+		venv\Scripts\activate
+
+5. Install dependencies
+   	
+		pip install -r requirements.txt
+
+7. Run the application
+		
+		ython app.py
 
 Then open your browser at: http://127.0.0.1:5000
 
@@ -147,9 +157,12 @@ The app will launch exactly the same as the terminal method.
 ## Environment Variables
 
 HydrateTrack uses a .env file to store application settings.
+
 In the project root, create: .env
 
 Add:
+
+
 	SECRET_KEY=supersecretkey123
 	DATABASE_URL=sqlite:///hydration.db
 
@@ -158,6 +171,7 @@ Add:
 The SQLite database is automatically generated when the app is started:
 
 To reset the database:
+
 	rm hydration.db
 	python app.py
 
@@ -217,6 +231,7 @@ This project was developed using PyCharm, but the codebase is IDE-independent. Y
 ##  Contribution & Extension Ideas
 
 Want to help or extend HydrateTrack? Great! Possible future enhancements:
+
 	•	Unit preference toggle (metric ↔ imperial)
 	•	Profile editing (change weight, height, etc.)
 	•	Integration with fitness trackers (e.g. wearables or Strava)
